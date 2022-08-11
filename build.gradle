@@ -1,0 +1,161 @@
+plugins {
+    id 'jacoco'
+    id 'java-library'
+    id 'maven-publish'
+}
+
+sourceCompatibility = 1.8
+targetCompatibility = 1.8
+
+project.group = 'br.com'
+
+repositories {
+    mavenCentral()
+}
+
+ext {
+    set('mapstructVersion', '1.4.2.Final')
+    set('lombokMapstructBindingVersion', '0.2.0')
+}
+
+dependencies {
+
+
+    annotationProcessor 'org.projectlombok:lombok:1.18.22'
+    compileOnly 'org.projectlombok:lombok:1.18.22'
+
+    implementation 'org.springframework.cloud:spring-cloud-starter-openfeign:3.1.1'
+    implementation 'com.fasterxml.jackson.core:jackson-databind:2.13.2.2'
+    implementation "org.mapstruct:mapstruct:${mapstructVersion}"
+
+    implementation 'javax.validation:validation-api:2.0.1.Final'
+    implementation 'org.hibernate:hibernate-validator:7.0.4.Final'
+    implementation 'org.springframework.data:spring-data-commons:2.6.3'
+
+    testAnnotationProcessor 'org.projectlombok:lombok:1.18.22'
+
+    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.8.2'
+    testImplementation 'org.jeasy:easy-random-core:5.0.0'
+
+    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.8.2'
+}
+
+test {
+    useJUnitPlatform()
+    finalizedBy jacocoTestReport
+}
+
+jacocoTestReport {
+    dependsOn test
+
+    reports {
+        xml.required = true
+        csv.required = false
+    }
+
+    afterEvaluate {
+        classDirectories.setFrom(files(classDirectories.files.collect {
+            fileTree(dir: it, exclude: [
+                    " "
+            ])
+        }))
+    }
+}
+
+publishing {
+    publications {
+        lib(MavenPublication) {
+            from components.java
+        }
+    }
+
+    repositories {
+        maven {
+            name = "GitHubPackages"
+            url = "https://maven.pkg.github.com/renatagarcia-mbciet/poc-git-packages/"
+            credentials {
+                username System.getenv("GITHUB_ACTOR") ?: "admin"
+                password System.getenv("GITHUB_TOKEN") ?: "admin"
+            }
+        }
+    }
+}
+
+build {
+    project.version = getVersion()
+}
+
+task getVersionName {
+    doLast {
+        println(getVersion())
+    }
+}
+
+task incrementVersionNameMajor {
+    doLast {
+        println("Version before: " + getVersion())
+        def propertiesFile = file('version.properties')
+        Properties properties = new Properties()
+        loadProperties(propertiesFile, properties)
+
+        def versionNameMajor = ((String) properties['VERSION_NAME_MAJOR']).toInteger() + 1
+        def versionNameMinor = 0
+        def versionNamePatch = 0
+
+        properties['VERSION_NAME_MAJOR'] = versionNameMajor.toString()
+        properties['VERSION_NAME_MINOR'] = versionNameMinor.toString()
+        properties['VERSION_NAME_PATCH'] = versionNamePatch.toString()
+        properties.store(propertiesFile.newWriter(), null)
+        println("Version after: " + getVersion())
+    }
+}
+
+task incrementVersionNameMinor {
+    doLast {
+        println("Version before: " + getVersion())
+        def propertiesFile = file('version.properties')
+        Properties properties = new Properties()
+        loadProperties(propertiesFile, properties)
+
+        def versionNameMinor = ((String) properties['VERSION_NAME_MINOR']).toInteger() + 1
+        def versionNamePatch = 0
+
+        properties['VERSION_NAME_MINOR'] = versionNameMinor.toString()
+        properties['VERSION_NAME_PATCH'] = versionNamePatch.toString()
+        properties.store(propertiesFile.newWriter(), null)
+        println("Version after: " + getVersion())
+    }
+}
+
+task incrementVersionNamePatch {
+    doLast {
+        println("Version before: " + getVersion())
+        def propertiesFile = file('version.properties')
+        Properties properties = new Properties()
+        loadProperties(propertiesFile, properties)
+
+        def versionNamePatch = ((String) properties['VERSION_NAME_PATCH']).toInteger() + 1
+
+        properties['VERSION_NAME_PATCH'] = versionNamePatch.toString()
+        properties.store(propertiesFile.newWriter(), null)
+        println("Version after: " + getVersion())
+    }
+}
+
+String getVersion() {
+    def propertiesFile = file('version.properties')
+    Properties properties = new Properties()
+    loadProperties(propertiesFile, properties)
+
+    return properties['VERSION_NAME_MAJOR'] + "." +
+            properties['VERSION_NAME_MINOR'] + "." +
+            properties['VERSION_NAME_PATCH']
+}
+
+static void loadProperties(File propFile, Properties versionProps) {
+    if (propFile.canRead()) {
+        versionProps.load(new FileInputStream(propFile))
+    } else {
+        throw new GradleException("Could not read version.properties!")
+    }
+}
